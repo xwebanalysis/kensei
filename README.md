@@ -8,7 +8,7 @@
 **Language / Idioma**  
 [English](#) | [Español](./docs/esp/README.md)
 
-<p><em><a href="https://github.com/xscriptor/kensei">Kensei</a></em> : <em><a href="https://github.com/xscriptor/xwa">XWA</a>  <strong>submodule focused</strong> on web technology stack profiling — under active development</em></p>
+<p><em><a href="https://github.com/xwebanalysis/kensei">Kensei</a></em> : <em><a href="https://github.com/xwebanalysis/meta">XWA</a>  <strong>submodule focused</strong> on web technology stack profiling — under active development</em></p>
 
 <hr>
 

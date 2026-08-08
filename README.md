@@ -90,6 +90,25 @@
 
 <hr>
 
+<h2>Security</h2>
+
+<p>Optional JWT authentication and rate limiting are enabled with environment variables (disabled by default):</p>
+
+<table>
+  <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+  <tr><td><code>KENSEI_JWT_SECRET</code></td><td>unset</td><td>When set, all <code>/api/*</code> routes require an <code>Authorization: Bearer &lt;token&gt;</code> header (HS256, 24h)</td></tr>
+  <tr><td><code>KENSEI_AUTH_PASSWORD</code></td><td><code>kensei</code></td><td>Password accepted by <code>POST /api/auth/token</code></td></tr>
+  <tr><td><code>KENSEI_RATE_LIMIT_MAX</code></td><td><code>30</code></td><td>Requests per client IP per 60 s window (<code>429</code> when exceeded)</td></tr>
+</table>
+
+<pre><code>export KENSEI_JWT_SECRET=change-me
+curl -X POST http://localhost:8000/api/auth/token \
+  -H 'Content-Type: application/json' -d '{"password":"kensei"}'
+# use the returned token:
+curl -H 'Authorization: Bearer &lt;token&gt;' http://localhost:8000/api/profiles</code></pre>
+
+<hr>
+
 <h2>Related Documents</h2>
 
 <table>

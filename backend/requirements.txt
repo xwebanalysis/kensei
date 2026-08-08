@@ -12,7 +12,8 @@ jsbeautifier==1.15.1
 sourcemap==0.3.5
 
 # PostgreSQL (optional — install only if not using SQLite)
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.12
+PyJWT==2.13.0
 
 # Redis / Celery (optional — not used in SQLite mode)
 redis==5.0.1

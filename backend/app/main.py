@@ -4,8 +4,9 @@ from typing import Dict
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from . import models, database, profiler
+from . import models, database, profiler, security
 
 app = FastAPI(title="Kensei API", description="Web Technology Stack Profiler API", version="0.2.0")
 
@@ -21,6 +22,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(security.auth_middleware)
+app.middleware("http")(security.rate_limit_middleware)
+
+
+class TokenRequest(BaseModel):
+    password: str
+
+
+class TokenResponse(BaseModel):
+    token: str
+    expires_in: int
+
+
+@app.post("/api/auth/token", response_model=TokenResponse)
+def issue_token(request: TokenRequest):
+    """Issue a signed token. Only available when KENSEI_JWT_SECRET is set."""
+    if not security.AUTH_REQUIRED:
+        raise HTTPException(status_code=403, detail="Auth is disabled (no KENSEI_JWT_SECRET).")
+    if request.password != security.AUTH_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid password.")
+    return TokenResponse(
+        token=security.issue_token(),
+        expires_in=security.TOKEN_TTL_HOURS * 3600,
+    )
 
 @app.get("/")
 def read_root():

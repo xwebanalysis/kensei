@@ -15,7 +15,7 @@
   </div>
 
   <div *ngIf="loading" class="t-label" style="margin: var(--space-lg) 0;">Loading...</div>
-  <div *ngIf="error" class="t-label text-error" style="margin-bottom: var(--space-lg);">[ {{ error }} ]</div>
+  <div *ngIf="error" class="t-label text-accent" style="margin-bottom: var(--space-lg);">[ {{ error }} ]</div>
 
   <div *ngIf="profile && !loading">
     <div class="report-header">
@@ -23,11 +23,25 @@
       <span class="t-caption text-secondary">{{ profile.created_at | date:'medium' }} · {{ regularRoutes.length }} routes · {{ guards.length }} guards</span>
     </div>
 
-    <div *ngIf="regularRoutes.length === 0 && guards.length === 0" class="t-label text-secondary" style="margin-top: var(--space-lg);">
+    <div *ngIf="routeMap().length === 0 && guards.length === 0" class="t-label text-secondary" style="margin-top: var(--space-lg);">
       [ NO ROUTES DISCOVERED ]
     </div>
 
-    <div class="route-grid" *ngIf="regularRoutes.length > 0">
+    <section class="panel route-map" *ngIf="routeMap().length > 0" style="margin-top: var(--space-lg);">
+      <span class="t-label">ROUTE MAP</span>
+      <div class="route-tree">
+        <div *ngFor="let node of routeMap()" class="route-node" [style.padding-left.px]="node.depth * 22"
+             [class.is-group]="node.isGroup" [class.is-route]="!node.isGroup">
+          <span class="tree-line" *ngIf="node.depth > 0"></span>
+          <span class="t-data node-label">{{ node.label }}</span>
+          <span class="t-caption text-secondary" *ngIf="!node.isGroup && node.route">
+            {{ node.route.route_type }}<span *ngIf="node.route.framework"> · {{ node.route.framework }}</span><span *ngIf="node.route.module"> · {{ node.route.module }}</span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <div class="route-grid" *ngIf="routeMap().length === 0 && regularRoutes.length > 0">
       <div *ngFor="let r of regularRoutes" class="route-item">
         <span class="t-data">{{ r.path }}</span>
         <span class="t-caption text-secondary">{{ r.route_type }}<span *ngIf="r.framework"> · {{ r.framework }}</span></span>
@@ -37,7 +51,7 @@
     <section class="panel" *ngIf="guards.length > 0" style="margin-top: var(--space-lg);">
       <span class="t-label">AUTH GUARDS ({{ guards.length }})</span>
       <div class="route-grid">
-        <div *ngFor="let g of guards" class="route-item">
+        <div *ngFor="let g of guards" class="route-item guard-item">
           <span class="t-data">{{ g.path }}</span>
           <span class="t-caption text-secondary">{{ g.framework || 'unknown' }}</span>
         </div>

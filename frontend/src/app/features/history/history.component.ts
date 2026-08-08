@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
@@ -27,10 +28,24 @@ interface CompareResult {
   }>;
 }
 
+interface TrendPoint {
+  profile_id: number;
+  created_at: string;
+  technologies: number;
+  routes: number;
+  guards: number;
+  js_dependencies: number;
+}
+
+interface TrendsResult {
+  domain: string;
+  points: TrendPoint[];
+}
+
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './history.component.html',
   styleUrls: ['./history.component.scss']
 })
@@ -46,6 +61,11 @@ export class HistoryComponent implements OnInit, OnDestroy {
   compareError: string | null = null;
   deletingAll = false;
   confirmDeleteId: number | 'all' | null = null;
+
+  trendsDomain = '';
+  trendsResult: TrendsResult | null = null;
+  trendsLoading = false;
+  trendsError: string | null = null;
   private routerSub: Subscription | null = null;
 
   constructor(
@@ -130,5 +150,48 @@ export class HistoryComponent implements OnInit, OnDestroy {
 
   statusClass(status: string): string {
     return status.toLowerCase();
+  }
+
+  loadTrends(): void {
+    const domain = this.trendsDomain.trim();
+    if (!domain || this.trendsLoading) {
+      return;
+    }
+    this.trendsLoading = true;
+    this.trendsError = null;
+    this.trendsResult = null;
+    this.http.get<TrendsResult>(`http://${this.host}:8000/api/profiles/trends?domain=${encodeURIComponent(domain)}`)
+      .subscribe({
+        next: (data) => { this.trendsResult = data; this.trendsLoading = false; this.cdr.detectChanges(); },
+        error: (err) => {
+          this.trendsError = err.error?.detail ?? 'Trends failed.';
+          this.trendsLoading = false;
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  trendChart(): { points: Array<{x: number; y: number; label: string; value: number}>; max: number; width: number; height: number } {
+    const width = 720;
+    const height = 180;
+    const pad = 24;
+    if (!this.trendsResult || this.trendsResult.points.length === 0) {
+      return { points: [], max: 1, width, height };
+    }
+    const pts = this.trendsResult.points;
+    const max = Math.max(1, ...pts.map(p => p.technologies));
+    const n = pts.length;
+    const chartPts = pts.map((p, i) => ({
+      x: n === 1 ? width / 2 : pad + (i * (width - pad * 2)) / (n - 1),
+      y: height - pad - ((p.technologies / max) * (height - pad * 2)),
+      label: p.created_at ? new Date(p.created_at).toLocaleDateString() : `#${p.profile_id}`,
+      value: p.technologies,
+    }));
+    return { points: chartPts, max, width, height };
+  }
+
+  trendLinePath(): string {
+    const chart = this.trendChart();
+    return chart.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   }
 }

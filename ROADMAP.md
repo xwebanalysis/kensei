@@ -44,7 +44,7 @@ This file is formatted to be synced automatically with GitHub Issues using the `
 
 ## Production Hardening <!-- phase:production-hardening -->
 
-- [ ] Wrap FastAPI backend routes with JWT Authentication middleware (#25)
+- [x] Wrap FastAPI backend routes with JWT Authentication middleware (#25)
 - [ ] Add RBAC to restrict profiling actions by user level (#26)
-- [ ] Implement Redis-based rate limiting (#27)
+- [x] Implement rate limiting and access controls (#27)
 - [ ] Setup scheduled recurrent profiling via Celery Beat tasks (#28)

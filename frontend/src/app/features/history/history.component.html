@@ -75,3 +75,34 @@
     <div *ngIf="compareResult.changes.length === 0" class="t-label text-secondary">[ NO CHANGES DETECTED ]</div>
   </div>
 </div>
+
+  <header class="section-header" style="margin-top: var(--space-2xl);">
+    <div>
+      <h1 class="t-heading">HISTORICAL TRENDS</h1>
+      <span class="t-label">TECHNOLOGY EVOLUTION OVER TIME</span>
+    </div>
+  </header>
+
+  <div class="selector-row">
+    <label class="t-label" for="trend-domain">DOMAIN</label>
+    <input type="text" id="trend-domain" class="input-field" [(ngModel)]="trendsDomain" placeholder="example.com">
+    <button class="btn-compare" (click)="loadTrends()" [disabled]="trendsLoading || !trendsDomain.trim()">
+      {{ trendsLoading ? 'LOADING...' : 'LOAD TRENDS' }}
+    </button>
+  </div>
+
+  <div *ngIf="trendsError" class="t-label text-error" style="margin-top: var(--space-md);">[ {{ trendsError }} ]</div>
+
+  <div *ngIf="trendsResult" class="compare-panel" style="margin-top: var(--space-lg);">
+    <span class="t-label">{{ trendsResult.domain }} — {{ trendsResult.points.length }} PROFILE(S)</span>
+    <svg [attr.viewBox]="'0 0 ' + trendChart().width + ' ' + trendChart().height" class="trend-chart" preserveAspectRatio="none">
+      <line *ngFor="let p of trendChart().points" [attr.x1]="p.x" [attr.x2]="p.x" y1="0" y2="156" class="trend-gridline"/>
+      <polyline [attr.points]="trendLinePath()" class="trend-line"/>
+      <circle *ngFor="let p of trendChart().points" [attr.cx]="p.x" [attr.cy]="p.y" r="3" class="trend-dot">
+        <title>{{ p.label }} — {{ p.value }} technologies</title>
+      </circle>
+    </svg>
+    <div class="trend-legend">
+      <span class="t-caption text-secondary" *ngFor="let p of trendChart().points">{{ p.label }} · {{ p.value }}T</span>
+    </div>
+  </div>

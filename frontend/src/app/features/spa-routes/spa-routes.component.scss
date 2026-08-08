@@ -42,3 +42,45 @@
 
 .text-secondary { color: var(--text-secondary); }
 .text-error { color: var(--error); }
+
+.route-map {
+  padding: var(--space-lg);
+}
+
+.route-tree {
+  border: 1px solid var(--border);
+  padding: var(--space-sm) 0;
+}
+
+.route-node {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
+  position: relative;
+  border-left: 1px solid var(--border-visible);
+  margin-left: var(--space-sm);
+}
+
+.route-node.is-group .node-label {
+  color: var(--text-secondary);
+}
+
+.route-node.is-route .node-label {
+  color: var(--text-display);
+}
+
+.tree-line {
+  position: absolute;
+  left: -1px;
+  top: 0;
+  bottom: 0;
+  width: var(--space-sm);
+  border-bottom: 1px solid var(--border-visible);
+}
+
+.guard-item {
+  border-left: 2px solid var(--accent);
+  padding-left: var(--space-sm);
+  margin-left: var(--space-2xs);
+}

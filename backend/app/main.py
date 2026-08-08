@@ -274,3 +274,40 @@ def compare_profiles(
         "profiles": result,
         "changes": diffs,
     }
+
+
+@app.get("/api/profiles/trends")
+def profile_trends(
+    domain: str,
+    db: Session = Depends(database.get_db),
+):
+    """Timeline of profile metrics for a domain, oldest first."""
+    profiles = (
+        db.query(models.Profile)
+        .filter(models.Profile.domain_target.ilike(f"%{domain}%"))
+        .options(
+            joinedload(models.Profile.technologies),
+            joinedload(models.Profile.routes),
+            joinedload(models.Profile.js_dependencies),
+        )
+        .order_by(models.Profile.id.asc())
+        .all()
+    )
+
+    if not profiles:
+        raise HTTPException(status_code=404, detail="No profiles found for this domain")
+
+    return {
+        "domain": profiles[0].domain_target,
+        "points": [
+            {
+                "profile_id": p.id,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "technologies": len(p.technologies),
+                "routes": len([r for r in p.routes if r.route_type != "guard"]),
+                "guards": len([r for r in p.routes if r.route_type == "guard"]),
+                "js_dependencies": len(p.js_dependencies),
+            }
+            for p in profiles
+        ],
+    }

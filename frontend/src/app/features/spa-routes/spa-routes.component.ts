@@ -1,25 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-
-interface ProfileSummary {
-  id: number;
-  domain_target: string;
-}
-
-interface DiscoveredRoute {
-  path: string;
-  framework: string | null;
-  route_type: string;
-  module: string | null;
-}
-
-interface ProfileDetail {
-  id: number;
-  domain_target: string;
-  created_at: string;
-  routes: DiscoveredRoute[];
-}
+import { DatePipe } from '@angular/common';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ApiService, DiscoveredRoute, ProfileDetail, ProfileSummary } from '../../core/api.service';
+import { FindingRow, FindingsListComponent } from '../../shared/findings-list/findings-list.component';
+import { TranslatePipe } from '../../shared/translate.pipe';
 
 interface RouteNode {
   label: string;
@@ -33,44 +16,60 @@ interface RouteNode {
 @Component({
   selector: 'app-spa-routes',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DatePipe, FindingsListComponent, TranslatePipe],
   templateUrl: './spa-routes.component.html',
-  styleUrls: ['./spa-routes.component.scss']
+  styleUrls: ['./spa-routes.component.scss'],
 })
 export class SpaRoutesComponent implements OnInit {
+  private readonly api = inject(ApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
   profiles: ProfileSummary[] = [];
   profile: ProfileDetail | null = null;
   loading = false;
-  error: string | null = null;
-  host = window.location.hostname;
-
-  constructor(
-    private http: HttpClient,
-    private cdr: ChangeDetectorRef
-  ) {}
+  errorKey = '';
 
   ngOnInit(): void {
-    this.http.get<ProfileSummary[]>(`http://${this.host}:8000/api/profiles`)
-      .subscribe({ next: (data) => { this.profiles = data; this.cdr.detectChanges(); } });
+    this.api.listProfiles().subscribe({
+      next: (profiles) => {
+        this.profiles = profiles;
+        this.cdr.markForCheck();
+      },
+      error: () => this.cdr.markForCheck(),
+    });
   }
 
   loadProfile(id: number): void {
     this.loading = true;
-    this.error = null;
+    this.errorKey = '';
     this.profile = null;
-    this.http.get<ProfileDetail>(`http://${this.host}:8000/api/profiles/${id}`)
-      .subscribe({
-        next: (data) => { this.profile = data; this.loading = false; this.cdr.detectChanges(); },
-        error: () => { this.error = 'Failed to load.'; this.loading = false; this.cdr.detectChanges(); }
-      });
+    this.api.getProfile(id).subscribe({
+      next: (profile) => {
+        this.profile = profile;
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorKey = 'js.loadError';
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   get guards(): DiscoveredRoute[] {
-    return this.profile?.routes.filter(r => r.route_type === 'guard') || [];
+    return this.profile?.routes.filter((route) => route.route_type === 'guard') || [];
   }
 
   get regularRoutes(): DiscoveredRoute[] {
-    return this.profile?.routes.filter(r => r.route_type !== 'guard') || [];
+    return this.profile?.routes.filter((route) => route.route_type !== 'guard') || [];
+  }
+
+  guardItems(): FindingRow[] {
+    return this.guards.map((route) => ({
+      label: route.path,
+      detail: route.framework || 'unknown',
+    }));
   }
 
   routeMap(): RouteNode[] {
@@ -79,21 +78,21 @@ export class SpaRoutesComponent implements OnInit {
       return [];
     }
 
-    const children = new Map<string, Map<string, any>>();
+    type Level = Map<string, Level | DiscoveredRoute>;
 
-    function segments(path: string): string[] {
-      return path.split('/').filter(Boolean);
-    }
+    const children: Level = new Map();
+
+    const segments = (path: string): string[] => path.split('/').filter(Boolean);
 
     for (const route of routes) {
-      const segs = segments(route.path);
+      const parts = segments(route.path);
       let level = children;
-      for (let i = 0; i < segs.length; i++) {
-        if (!level.has(segs[i])) {
-          level.set(segs[i], new Map<string, any>());
+      for (let i = 0; i < parts.length; i++) {
+        if (!level.has(parts[i])) {
+          level.set(parts[i], new Map());
         }
-        const next = level.get(segs[i])!;
-        if (i === segs.length - 1) {
+        const next = level.get(parts[i]) as Level;
+        if (i === parts.length - 1) {
           next.set('__route__', route);
         }
         level = next;
@@ -101,11 +100,15 @@ export class SpaRoutesComponent implements OnInit {
     }
 
     const nodes: RouteNode[] = [];
-    const walk = (level: Map<string, Map<string, any>>, depth: number, prefix: string) => {
-      for (const [segment, sub] of level) {
-        const fullPath = prefix + '/' + segment;
+    const walk = (level: Level, depth: number, prefix: string): void => {
+      for (const [segment, value] of level) {
+        if (segment === '__route__') {
+          continue;
+        }
+        const fullPath = `${prefix}/${segment}`;
+        const sub = value as Level;
         const route = (sub.get('__route__') ?? null) as DiscoveredRoute | null;
-        const hasChildren = sub.size > 1;
+        const hasChildren = [...sub.keys()].some((key) => key !== '__route__');
         nodes.push({
           label: segment,
           depth,

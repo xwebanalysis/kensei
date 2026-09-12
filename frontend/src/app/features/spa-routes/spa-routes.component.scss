@@ -4,7 +4,9 @@
   gap: var(--space-md);
   margin-bottom: var(--space-xl);
 
-  select { min-width: 240px; }
+  select {
+    min-width: 240px;
+  }
 }
 
 .report-header {
@@ -16,19 +18,16 @@
   border-bottom: 1px solid var(--border);
 }
 
-.route-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+.loading-line {
+  margin: var(--space-lg) 0;
 }
 
-.route-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border);
-  background: var(--black);
+.error-line {
+  margin-bottom: var(--space-lg);
+}
+
+.empty-line {
+  margin-top: var(--space-lg);
 }
 
 .panel {
@@ -39,9 +38,6 @@
   flex-direction: column;
   gap: var(--space-md);
 }
-
-.text-secondary { color: var(--text-secondary); }
-.text-error { color: var(--error); }
 
 .route-map {
   padding: var(--space-lg);
@@ -79,8 +75,6 @@
   border-bottom: 1px solid var(--border-visible);
 }
 
-.guard-item {
-  border-left: 2px solid var(--accent);
-  padding-left: var(--space-sm);
-  margin-left: var(--space-2xs);
+.guards-panel {
+  margin-top: var(--space-lg);
 }

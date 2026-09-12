@@ -1,13 +1,19 @@
 import os
 import time
-from sqlalchemy import create_engine, event
-from sqlalchemy import text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from pathlib import Path
 
-DB_DRIVER = os.getenv("DB_DRIVER", "postgresql")
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+TOOL_NAME = "kensei"
+
+# SQLite is the default (100% local, zero infra). PostgreSQL is opt-in via
+# DB_DRIVER=postgresql (see docker-compose.yml and docs/development.md).
+DB_DRIVER = os.getenv("DB_DRIVER", "sqlite")
 
 if DB_DRIVER == "sqlite":
-    DB_PATH = os.getenv("DB_PATH", "./kensei.db")
+    _DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / f"{TOOL_NAME}.db"
+    DB_PATH = os.getenv("DB_PATH", str(_DEFAULT_DB_PATH))
     DATABASE_URL = f"sqlite:///{DB_PATH}"
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
@@ -16,14 +22,17 @@ if DB_DRIVER == "sqlite":
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys = ON")
         cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA busy_timeout = 5000")
         cursor.close()
+
 else:
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASS = os.getenv("DB_PASS", "postgres")
     DB_HOST = os.getenv("DB_HOST", "db")
-    DB_NAME = os.getenv("DB_NAME", "kensei")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    DB_NAME = os.getenv("DB_NAME", TOOL_NAME)
 
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}"
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 

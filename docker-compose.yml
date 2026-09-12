@@ -3,7 +3,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - "4200:4200"
+      - "4210:4210"
     volumes:
       - ./frontend:/app/
       - /app/node_modules/
@@ -14,25 +14,21 @@ services:
     build:
       context: ./backend
     ports:
-      - "8000:8000"
+      - "8010:8010"
     volumes:
       - ./backend/app:/app/app
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - DB_DRIVER=postgresql
       - DB_HOST=db
+      - DB_PORT=5432
       - DB_NAME=kensei
       - DB_USER=postgres
       - DB_PASS=postgres
+      # Optional: comma-separated exact origins, or "*"; unset = localhost/LAN regex.
+      - XWA_CORS_ORIGINS=${XWA_CORS_ORIGINS:-}
     depends_on:
-      redis:
-        condition: service_started
       db:
         condition: service_healthy
-
-  redis:
-    image: "redis:alpine"
-    ports:
-      - "6379:6379"
 
   db:
     image: postgres:15-alpine

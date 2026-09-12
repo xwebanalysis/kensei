@@ -1,80 +1,63 @@
-import { Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
+import { Component, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 
-interface Technology {
-  name: string;
-  version: string | null;
-  confidence: string;
-  evidence: string;
-}
+import { ApiService, DiscoveredRoute, ProfileDetail, ProfileReport } from '../../core/api.service';
+import {
+  LiveEvent,
+  LiveStats,
+  applyLiveEvent,
+  createLiveStats,
+  liveEventLogLine,
+  parseLiveEvent,
+} from '../../core/live-event';
+import { FindingRow, FindingsListComponent } from '../../shared/findings-list/findings-list.component';
+import { MetricCardComponent } from '../../shared/metric-card/metric-card.component';
+import { TerminalComponent } from '../../shared/terminal/terminal.component';
+import { TranslatePipe } from '../../shared/translate.pipe';
 
-interface ProfileReport {
-  domain: string;
-  profile_id: number;
-  created_at: string;
-  summary: {
-    technologies_found: number;
-    routes_discovered: number;
-    guards_detected: number;
-    js_dependencies_found: number;
-    categories: string[];
-  };
-  technologies_by_category: Record<string, Technology[]>;
-  outdated_technologies?: Technology[];
-}
-
-interface DiscoveredRoute {
-  path: string;
-  framework: string | null;
-  route_type: string;
-  module: string | null;
-}
-
-interface JsDependency {
-  name: string;
-  version: string | null;
-  source: string | null;
-  package_manager: string | null;
-}
-
-interface ProfileDetail {
+interface PhaseRow {
   id: number;
-  domain_target: string;
-  status: string;
-  created_at: string;
-  technologies: Technology[];
-  routes: DiscoveredRoute[];
-  js_dependencies: JsDependency[];
+  label: string;
+  done: boolean;
+  active: boolean;
 }
 
 @Component({
   selector: 'app-profiler',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    FindingsListComponent,
+    MetricCardComponent,
+    TerminalComponent,
+    TranslatePipe,
+  ],
   templateUrl: './profiler.component.html',
-  styleUrls: ['./profiler.component.scss']
+  styleUrls: ['./profiler.component.scss'],
 })
 export class ProfilerComponent implements OnDestroy {
+  protected readonly api = inject(ApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
   targetUrl = '';
-  host = window.location.hostname;
   scanning = false;
-  completed = false;
-  error: string | null = null;
+  error = '';
+  errorKey = '';
   profileId: number | null = null;
   report: ProfileReport | null = null;
   detail: ProfileDetail | null = null;
+  logLines: string[] = [];
 
   currentPhase = '';
-  techsFound = 0;
-  routesFound = 0;
-  guardsFound = 0;
-  jsDepsFound = 0;
   currentTarget = '';
 
-  phases = [
+  stats: LiveStats = createLiveStats();
+
+  phases: PhaseRow[] = [
     { id: 1, label: 'SSL/TLS', done: false, active: false },
     { id: 2, label: 'SERVER FINGERPRINT', done: false, active: false },
     { id: 3, label: 'JS BUNDLE ANALYSIS', done: false, active: false },
@@ -83,141 +66,227 @@ export class ProfilerComponent implements OnDestroy {
 
   private ws: WebSocket | null = null;
 
-  constructor(
-    private http: HttpClient,
-    private cdr: ChangeDetectorRef
-  ) {}
-
   startScan(): void {
     const url = this.targetUrl.trim();
-    if (!url || this.scanning) return;
+    if (!url || this.scanning) {
+      return;
+    }
 
     this.scanning = true;
-    this.completed = false;
-    this.error = null;
+    this.error = '';
+    this.errorKey = '';
     this.profileId = null;
     this.report = null;
     this.detail = null;
     this.currentPhase = '';
-    this.techsFound = 0;
-    this.routesFound = 0;
-    this.guardsFound = 0;
-    this.jsDepsFound = 0;
     this.currentTarget = url;
-    this.phases.forEach(p => { p.done = false; p.active = false; });
-    this.cdr.detectChanges();
+    this.logLines = [];
+    this.stats = createLiveStats();
+    this.phases.forEach((phase) => {
+      phase.done = false;
+      phase.active = false;
+    });
+    this.cdr.markForCheck();
 
-    const wsUrl = `ws://${this.host}:8000/api/profile/live?target=${encodeURIComponent(url)}&timeout=180`;
-    this.ws = new WebSocket(wsUrl);
+    this.ws = new WebSocket(this.api.liveUrl(url, 180));
 
-    this.ws.onmessage = (event) => {
-      const msg = event.data;
-
-      if (msg.startsWith('[!] CRITICAL ERROR:')) {
-        this.error = msg.replace('[!] CRITICAL ERROR:', '').trim();
-        this.scanning = false;
-        this.cdr.detectChanges();
+    this.ws.onmessage = (message) => {
+      const event = parseLiveEvent(message.data);
+      if (!event) {
         return;
       }
-
-      const metaMatch = msg.match(/\[PROFILE_META\] profile_id=(\d+)/);
-      if (metaMatch) {
-        this.profileId = parseInt(metaMatch[1], 10);
-        this.cdr.detectChanges();
-        return;
-      }
-
-      const phaseMatch = msg.match(/\[kensei\] phase (\d)\/4 — (.+)/);
-      if (phaseMatch) {
-        const num = parseInt(phaseMatch[1], 10);
-        this.currentPhase = phaseMatch[2].trim();
-        this.phases.forEach(p => {
-          p.active = p.id === num;
-          if (p.id < num) p.done = true;
-        });
-        this.cdr.detectChanges();
-        return;
-      }
-
-      if (msg.includes('complete') && msg.includes('phase')) {
-        const phaseDone = this.phases.find(p => p.active);
-        if (phaseDone) { phaseDone.done = true; phaseDone.active = false; }
-        this.cdr.detectChanges();
-        return;
-      }
-
-      const techMatch = msg.match(/\[fingerprint\] .+? ([\w-]+)/);
-      const cdnMatch = msg.match(/\[fingerprint\] CDN: (.+)/);
-      if (techMatch || cdnMatch) {
-        this.techsFound++;
-        this.cdr.detectChanges();
-        return;
-      }
-
-      const depMatch = msg.match(/\[js\] found (\d+) dependencies/);
-      if (depMatch) {
-        this.jsDepsFound += parseInt(depMatch[1], 10);
-        this.cdr.detectChanges();
-        return;
-      }
-
-      const routeMatch = msg.match(/\[spa\] found (\d+) routes/);
-      if (routeMatch) {
-        this.routesFound = parseInt(routeMatch[1], 10);
-        this.cdr.detectChanges();
-        return;
-      }
-
-      if (msg === '[done] profiling complete and saved to history') {
-        this.completed = true;
-        this.scanning = false;
-        this.phases.forEach(p => { p.done = true; p.active = false; });
-        this.ws?.close();
-        this.fetchReport();
-        this.fetchDetail();
-        this.cdr.detectChanges();
-      }
+      this.handleEvent(event);
+      this.cdr.markForCheck();
     };
 
     this.ws.onerror = () => {
-      this.error = 'WebSocket connection failed. Is the backend on port 8000?';
+      this.errorKey = 'profiler.wsError';
+      this.error = this.api.apiBaseUrl;
       this.scanning = false;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     };
 
     this.ws.onclose = () => {
-      if (!this.completed && !this.error) {
-        this.error = 'Connection closed unexpectedly.';
+      if (!this.stats.completed && !this.error) {
+        this.errorKey = 'profiler.closedError';
       }
       this.scanning = false;
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     };
   }
 
+  private handleEvent(event: LiveEvent): void {
+    this.stats = applyLiveEvent(this.stats, event);
+    const payload = event.payload ?? {};
+
+    const logLine = liveEventLogLine(event);
+    if (logLine) {
+      this.pushLog(logLine);
+    }
+
+    switch (event.type) {
+      case 'analysis_started':
+        this.profileId = this.stats.profileId;
+        this.currentPhase = 'INITIALIZING';
+        break;
+
+      case 'analysis_progress': {
+        this.profileId = this.stats.profileId;
+        this.currentPhase = this.stats.phaseName || this.currentPhase;
+        const phase = this.phases.find((row) => row.id === this.stats.phase);
+        if (phase) {
+          if (payload.status === 'complete') {
+            phase.done = true;
+            phase.active = false;
+          } else {
+            phase.active = true;
+            this.phases.forEach((row) => {
+              if (row.id < phase.id) {
+                row.done = true;
+              }
+            });
+          }
+        }
+        break;
+      }
+
+      case 'analysis_completed':
+        this.profileId = this.stats.profileId;
+        this.scanning = false;
+        this.phases.forEach((row) => {
+          row.done = true;
+          row.active = false;
+        });
+        this.ws?.close();
+        this.fetchReport();
+        this.fetchDetail();
+        break;
+
+      case 'analysis_error':
+        this.errorKey = '';
+        this.error = this.stats.error || 'Analysis failed.';
+        this.scanning = false;
+        this.phases.forEach((row) => {
+          row.active = false;
+        });
+        this.ws?.close();
+        break;
+    }
+  }
+
+  private pushLog(line: string): void {
+    this.logLines = [...this.logLines.slice(-199), line];
+  }
+
   fetchReport(): void {
-    if (!this.profileId) return;
-    this.http.get<ProfileReport>(`http://${this.host}:8000/api/profiles/${this.profileId}/report`)
-      .subscribe({
-        next: (r) => { this.report = r; this.cdr.detectChanges(); },
-        error: () => { this.error = 'Failed to load profile report.'; this.cdr.detectChanges(); }
-      });
+    if (!this.profileId) {
+      return;
+    }
+    this.api.report(this.profileId).subscribe({
+      next: (report) => {
+        this.report = report;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorKey = 'profiler.reportError';
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   fetchDetail(): void {
-    if (!this.profileId) return;
-    this.http.get<ProfileDetail>(`http://${this.host}:8000/api/profiles/${this.profileId}`)
-      .subscribe({
-        next: (d) => { this.detail = d; this.cdr.detectChanges(); },
-        error: () => {}
-      });
+    if (!this.profileId) {
+      return;
+    }
+    this.api.getProfile(this.profileId).subscribe({
+      next: (detail) => {
+        this.detail = detail;
+        this.cdr.markForCheck();
+      },
+      error: () => this.cdr.markForCheck(),
+    });
   }
 
   get guards(): DiscoveredRoute[] {
-    return this.detail?.routes.filter(r => r.route_type === 'guard') || [];
+    return this.detail?.routes.filter((route) => route.route_type === 'guard') || [];
   }
 
   get regularRoutes(): DiscoveredRoute[] {
-    return this.detail?.routes.filter(r => r.route_type !== 'guard') || [];
+    return this.detail?.routes.filter((route) => route.route_type !== 'guard') || [];
+  }
+
+  hasError(): boolean {
+    return Boolean(this.error || this.errorKey);
+  }
+
+  reportCategories(): string[] {
+    return this.report?.summary.categories ?? [];
+  }
+
+  categoryItems(category: string): FindingRow[] {
+    const technologies = this.report?.technologies_by_category[category] ?? [];
+    return technologies.map((tech) => ({
+      label: tech.name,
+      detail: tech.version ? `v${tech.version}` : '',
+      tag: tech.confidence,
+      tagKind: 'confidence' as const,
+    }));
+  }
+
+  outdatedItems(): FindingRow[] {
+    return (this.report?.outdated_technologies ?? []).map((tech) => ({
+      label: tech.name,
+      detail: tech.evidence ?? '',
+      tag: tech.version,
+      tagKind: 'severity' as const,
+    }));
+  }
+
+  routeItems(): FindingRow[] {
+    return this.regularRoutes.map((route) => ({
+      label: route.path,
+      detail: [route.route_type, route.framework].filter(Boolean).join(' · '),
+    }));
+  }
+
+  guardItems(): FindingRow[] {
+    return this.guards.map((route) => ({
+      label: route.path,
+      detail: route.framework || 'unknown',
+    }));
+  }
+
+  dependencyItems(): FindingRow[] {
+    return (this.detail?.js_dependencies ?? []).map((dep) => ({
+      label: dep.name,
+      detail: [dep.version ? `v${dep.version}` : '', dep.package_manager].filter(Boolean).join(' · '),
+    }));
+  }
+
+  statusLabelKey(): string {
+    if (this.scanning) {
+      return 'profiler.statusScanning';
+    }
+    if (this.stats.completed) {
+      return 'profiler.statusComplete';
+    }
+    if (this.error) {
+      return 'profiler.statusError';
+    }
+    return 'profiler.statusReady';
+  }
+
+  statusColor(): string {
+    if (this.scanning) {
+      return 'var(--warning)';
+    }
+    if (this.stats.completed) {
+      return 'var(--success)';
+    }
+    if (this.error) {
+      return 'var(--error)';
+    }
+    return 'var(--success)';
   }
 
   ngOnDestroy(): void {

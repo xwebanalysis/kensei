@@ -133,50 +133,54 @@ async def run(target: str, log: LogCallback) -> Dict[str, Any]:
                 "package_manager": "unknown",
             })
 
+    # The HTML client is closed by its `async with` block, so bundle fetches
+    # need their own client (previously they reused the closed one and every
+    # request failed silently, so only inline HTML signatures were detected).
     bundle_text = ""
-    for url in resolved_urls[:5]:
-        try:
-            resp = await client.get(url, timeout=10)
-            if resp.status_code == 200:
-                bundle_text += resp.text + "\n"
-                await log(f"[js] fetched bundle: {url.split('/')[-1][:60]} ({len(resp.text)}b)")
+    async with httpx.AsyncClient(timeout=15, verify=False, follow_redirects=True) as bundle_client:
+        for url in resolved_urls[:5]:
+            try:
+                resp = await bundle_client.get(url, timeout=10)
+                if resp.status_code == 200:
+                    bundle_text += resp.text + "\n"
+                    await log(f"[js] fetched bundle: {url.split('/')[-1][:60]} ({len(resp.text)}b)")
 
-                # Check for sourceMappingURL
-                sm_match = re.search(r'//#\s*sourceMappingURL\s*=\s*([^\s]+)', resp.text)
-                if sm_match:
-                    sm_url = sm_match.group(1)
-                    if not sm_url.startswith("http"):
-                        sm_url = urljoin(url, sm_url)
-                    source_maps.append({"bundle": url, "source_map_url": sm_url})
-                    await log(f"[js] found source map ref: {sm_url.split('/')[-1][:60]}")
+                    # Check for sourceMappingURL
+                    sm_match = re.search(r'//#\s*sourceMappingURL\s*=\s*([^\s]+)', resp.text)
+                    if sm_match:
+                        sm_url = sm_match.group(1)
+                        if not sm_url.startswith("http"):
+                            sm_url = urljoin(url, sm_url)
+                        source_maps.append({"bundle": url, "source_map_url": sm_url})
+                        await log(f"[js] found source map ref: {sm_url.split('/')[-1][:60]}")
 
-                    try:
-                        sm_resp = await client.get(sm_url, timeout=10)
-                        if sm_resp.status_code == 200:
-                            try:
-                                sm_data = sm_resp.json()
-                                sources = sm_data.get("sources", [])
-                                source_maps[-1]["sources"] = sources
-                                source_maps[-1]["source_count"] = len(sources)
-                                await log(f"[js] source map contains {len(sources)} original files")
+                        try:
+                            sm_resp = await bundle_client.get(sm_url, timeout=10)
+                            if sm_resp.status_code == 200:
+                                try:
+                                    sm_data = sm_resp.json()
+                                    sources = sm_data.get("sources", [])
+                                    source_maps[-1]["sources"] = sources
+                                    source_maps[-1]["source_count"] = len(sources)
+                                    await log(f"[js] source map contains {len(sources)} original files")
 
-                                for dep_name, dep_pat, dep_vg in COMMON_LIBRARIES:
-                                    for src in sources:
-                                        if dep_name in src.lower():
-                                            if not any(d["name"] == dep_name for d in dependencies):
-                                                dependencies.append({
-                                                    "name": dep_name,
-                                                    "version": None,
-                                                    "source": "sourcemap",
-                                                    "package_manager": "unknown",
-                                                })
-                                                break
-                            except (json.JSONDecodeError, Exception):
-                                pass
-                    except Exception:
-                        pass
-        except Exception:
-            continue
+                                    for dep_name, dep_pat, dep_vg in COMMON_LIBRARIES:
+                                        for src in sources:
+                                            if dep_name in src.lower():
+                                                if not any(d["name"] == dep_name for d in dependencies):
+                                                    dependencies.append({
+                                                        "name": dep_name,
+                                                        "version": None,
+                                                        "source": "sourcemap",
+                                                        "package_manager": "unknown",
+                                                    })
+                                                    break
+                                except (json.JSONDecodeError, Exception):
+                                    pass
+                        except Exception:
+                            pass
+            except Exception:
+                continue
 
     if bundle_text:
         bundle_lower = bundle_text.lower()

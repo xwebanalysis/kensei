@@ -1,9 +1,13 @@
+/* Self-hosted fonts: woff2 files live in public/fonts, @font-face lives in
+ * _fonts.scss so the Angular build compiles it into the global stylesheet. */
+@use 'fonts';
+
 /*====================================
  * NOTHING DESIGN SYSTEM - TOKENS
  *====================================*/
 
- :root {
-  /* Fonts */
+:root {
+  /* Fonts (self-hosted woff2 in public/fonts) */
   --font-display: 'Doto', 'Space Mono', monospace;
   --font-body: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
   --font-data: 'Space Mono', 'JetBrains Mono', monospace;
@@ -48,9 +52,10 @@
   --success: #4A9E5C;
   --warning: #D4A843;
   --error: #D71921;
+  --gold: #FFD700;
 }
 
-/* Light Theme overrides */
+/* Light Theme overrides (Printed Technical Manual) */
 .theme-light {
   --black: #F5F5F5;
   --surface: #FFFFFF;
@@ -74,6 +79,11 @@
   padding: 0;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   background-color: var(--black);
   color: var(--text-primary);
@@ -88,21 +98,32 @@ body.theme-transitioning,
 body.theme-transitioning *,
 body.theme-transitioning *::before,
 body.theme-transitioning *::after {
-  transition-property: background-color, color, border-color, fill, stroke, box-shadow;
+  transition-property: background-color, color, border-color, fill, stroke;
   transition-duration: 0.26s;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Typography Classes */
 .t-display-xl { font-family: var(--font-display); font-size: var(--display-xl); line-height: 1.0; letter-spacing: -0.03em; color: var(--text-display); }
 .t-display-lg { font-family: var(--font-display); font-size: var(--display-lg); line-height: 1.05; letter-spacing: -0.02em; color: var(--text-display); }
 .t-display-md { font-family: var(--font-display); font-size: var(--display-md); line-height: 1.1; letter-spacing: -0.02em; color: var(--text-display); }
 .t-heading { font-family: var(--font-body); font-size: var(--heading); line-height: 1.2; letter-spacing: -0.01em; color: var(--text-display); }
+.t-subheading { font-family: var(--font-body); font-size: var(--subheading); line-height: 1.3; color: var(--text-primary); }
 .t-label { font-family: var(--font-data); font-size: var(--label); line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
 .t-body { font-family: var(--font-body); font-size: var(--body); line-height: 1.5; color: var(--text-primary); }
 .t-caption { font-family: var(--font-data); font-size: var(--caption); line-height: 1.4; letter-spacing: 0.04em; color: var(--text-secondary); }
-.t-data { font-family: var(--font-data); }
-.t-link { font-family: var(--font-data); font-size: var(--label); letter-spacing: 0.08em; text-transform: uppercase; color: var(--interactive); text-decoration: none; cursor: pointer; }
-.t-link:hover { opacity: 0.7; }
+.t-data { font-family: var(--font-data); font-size: var(--body-sm); }
+.t-link {
+  font-family: var(--font-data);
+  font-size: var(--label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--interactive);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { opacity: 0.7; }
+}
 
 select.input-field {
   appearance: none;
@@ -148,13 +169,27 @@ select.input-field {
   }
 }
 
+/* Utility Classes */
 .bg-surface { background-color: var(--surface); }
 .border-divider { border: 1px solid var(--border); }
 .border-visible { border: 1px solid var(--border-visible); }
 .text-accent { color: var(--accent); }
+.text-error { color: var(--error); }
 .text-success { color: var(--success); }
 .text-warning { color: var(--warning); }
+.text-interactive { color: var(--interactive); }
+.text-gold { color: var(--gold); }
+.text-muted { color: var(--text-secondary); }
 
+/* Severity / status helpers (value-level color, never backgrounds) */
+.sev-pass { color: var(--success); }
+.sev-info { color: var(--text-secondary); }
+.sev-low { color: var(--warning); }
+.sev-medium { color: var(--warning); }
+.sev-high { color: var(--accent); }
+.sev-critical { color: var(--accent); font-weight: 700; }
+
+/* Dot-Matrix Motif */
 .dot-grid {
   background-image: radial-gradient(circle, var(--border-visible) 1px, transparent 1px);
   background-size: 16px 16px;
@@ -164,13 +199,17 @@ select.input-field {
   background-size: 12px 12px;
 }
 
-a, button {
+/* Basic Layout & Interactions */
+a,
+button {
   transition: opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
-a:hover, button:hover {
+a:hover,
+button:hover {
   opacity: 0.8;
 }
 
+/* Route transition: subtle ease-out only (no spring/bounce) */
 @keyframes fadeInSlideUp {
   0% {
     opacity: 0;

@@ -1,61 +1,83 @@
 <div class="route-container">
   <header class="section-header">
     <div>
-      <h1 class="t-heading">SPA ROUTES</h1>
-      <span class="t-label">ANGULAR, REACT, VUE ROUTE DISCOVERY</span>
+      <h1 class="t-heading">{{ 'spa.title' | t }}</h1>
+      <span class="t-label">{{ 'spa.subtitle' | t }}</span>
     </div>
   </header>
 
-  <div class="selector-row" *ngIf="profiles.length > 0">
-    <label class="t-label" for="spa-profile-select">PROFILE</label>
-    <select id="spa-profile-select" class="input-field" (change)="loadProfile(+$any($event.target).value)">
-      <option value="">— SELECT —</option>
-      <option *ngFor="let p of profiles" [value]="p.id">{{ p.domain_target }} (ID {{ p.id }})</option>
-    </select>
-  </div>
+  @if (profiles.length > 0) {
+    <div class="selector-row">
+      <label class="t-label" for="spa-profile-select">{{ 'inv.profile' | t }}</label>
+      <select id="spa-profile-select" class="input-field" (change)="loadProfile(+$any($event.target).value)">
+        <option value="">{{ 'common.select' | t }}</option>
+        @for (profile of profiles; track profile.id) {
+          <option [value]="profile.id">{{ profile.domain_target }} (ID {{ profile.id }})</option>
+        }
+      </select>
+    </div>
+  }
 
-  <div *ngIf="loading" class="t-label" style="margin: var(--space-lg) 0;">Loading...</div>
-  <div *ngIf="error" class="t-label text-accent" style="margin-bottom: var(--space-lg);">[ {{ error }} ]</div>
+  @if (loading) {
+    <div class="t-label loading-line">{{ 'common.loading' | t }}</div>
+  }
+  @if (errorKey) {
+    <div class="t-label text-error error-line">[ {{ errorKey | t }} ]</div>
+  }
 
-  <div *ngIf="profile && !loading">
+  @if (profile && !loading) {
     <div class="report-header">
       <span class="t-data">{{ profile.domain_target }}</span>
-      <span class="t-caption text-secondary">{{ profile.created_at | date:'medium' }} · {{ regularRoutes.length }} routes · {{ guards.length }} guards</span>
+      <span class="t-caption text-muted">
+        {{ profile.created_at | date:'medium' }} ·
+        {{ 'spa.summary' | t: { routes: regularRoutes.length, guards: guards.length } }}
+      </span>
     </div>
 
-    <div *ngIf="routeMap().length === 0 && guards.length === 0" class="t-label text-secondary" style="margin-top: var(--space-lg);">
-      [ NO ROUTES DISCOVERED ]
-    </div>
+    @if (routeMap().length === 0 && guards.length === 0) {
+      <div class="t-label text-muted empty-line">{{ 'spa.empty' | t }}</div>
+    }
 
-    <section class="panel route-map" *ngIf="routeMap().length > 0" style="margin-top: var(--space-lg);">
-      <span class="t-label">ROUTE MAP</span>
-      <div class="route-tree">
-        <div *ngFor="let node of routeMap()" class="route-node" [style.padding-left.px]="node.depth * 22"
-             [class.is-group]="node.isGroup" [class.is-route]="!node.isGroup">
-          <span class="tree-line" *ngIf="node.depth > 0"></span>
-          <span class="t-data node-label">{{ node.label }}</span>
-          <span class="t-caption text-secondary" *ngIf="!node.isGroup && node.route">
-            {{ node.route.route_type }}<span *ngIf="node.route.framework"> · {{ node.route.framework }}</span><span *ngIf="node.route.module"> · {{ node.route.module }}</span>
-          </span>
+    @if (routeMap().length > 0) {
+      <section class="panel route-map">
+        <span class="t-label">{{ 'spa.routeMap' | t }}</span>
+        <div class="route-tree">
+          @for (node of routeMap(); track node.fullPath + '-' + node.depth) {
+            <div
+              class="route-node"
+              [style.padding-left.px]="node.depth * 22"
+              [class.is-group]="node.isGroup"
+              [class.is-route]="!node.isGroup"
+            >
+              @if (node.depth > 0) {
+                <span class="tree-line"></span>
+              }
+              <span class="t-data node-label">{{ node.label }}</span>
+              @if (!node.isGroup && node.route) {
+                <span class="t-caption text-muted">
+                  {{ node.route.route_type }}
+                  @if (node.route.framework) {
+                    <span> · {{ node.route.framework }}</span>
+                  }
+                  @if (node.route.module) {
+                    <span> · {{ node.route.module }}</span>
+                  }
+                </span>
+              }
+            </div>
+          }
         </div>
-      </div>
-    </section>
+      </section>
+    }
 
-    <div class="route-grid" *ngIf="routeMap().length === 0 && regularRoutes.length > 0">
-      <div *ngFor="let r of regularRoutes" class="route-item">
-        <span class="t-data">{{ r.path }}</span>
-        <span class="t-caption text-secondary">{{ r.route_type }}<span *ngIf="r.framework"> · {{ r.framework }}</span></span>
-      </div>
-    </div>
-
-    <section class="panel" *ngIf="guards.length > 0" style="margin-top: var(--space-lg);">
-      <span class="t-label">AUTH GUARDS ({{ guards.length }})</span>
-      <div class="route-grid">
-        <div *ngFor="let g of guards" class="route-item guard-item">
-          <span class="t-data">{{ g.path }}</span>
-          <span class="t-caption text-secondary">{{ g.framework || 'unknown' }}</span>
-        </div>
-      </div>
-    </section>
-  </div>
+    @if (guards.length > 0) {
+      <section class="panel guards-panel">
+        <app-findings-list
+          [title]="('spa.authGuards' | t) + ' (' + guards.length + ')'"
+          [items]="guardItems()"
+          [emptyText]="'common.noData' | t"
+        />
+      </section>
+    }
+  }
 </div>

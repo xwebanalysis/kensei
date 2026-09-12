@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "app.bundle.js",
+  "sources": [
+    "webpack:///./src/app/app.module.ts",
+    "webpack:///./node_modules/lodash/lodash.js",
+    "webpack:///./node_modules/axios/index.js",
+    "webpack:///./node_modules/moment/moment.js",
+    "webpack:///./src/routes.ts"
+  ],
+  "names": [],
+  "mappings": "AAAA"
+}

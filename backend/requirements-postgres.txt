@@ -1,0 +1,5 @@
+# Optional PostgreSQL driver — only needed when DB_DRIVER=postgresql.
+# Install on top of the runtime requirements:
+#   pip install -r requirements-postgres.txt
+-r requirements.txt
+psycopg2-binary==2.9.12

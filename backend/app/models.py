@@ -1,7 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from datetime import datetime, timezone
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from .database import Base
+
+
+def _utcnow() -> datetime:
+    """Naive UTC now (column is timezone-naive for SQLite/PostgreSQL parity)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Profile(Base):
@@ -9,9 +16,11 @@ class Profile(Base):
     id = Column(Integer, primary_key=True, index=True)
     domain_target = Column(String, index=True)
     status = Column(String, default="RUNNING")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     technologies = relationship("Technology", back_populates="profile", cascade="all, delete-orphan")
+    routes = relationship("DiscoveredRoute", back_populates="profile", cascade="all, delete-orphan")
+    js_dependencies = relationship("JsDependency", back_populates="profile", cascade="all, delete-orphan")
 
 
 class Technology(Base):
@@ -52,8 +61,3 @@ class JsDependency(Base):
     package_manager = Column(String, nullable=True)  # npm, yarn, pnpm, unknown
 
     profile = relationship("Profile", back_populates="js_dependencies")
-
-
-Profile.technologies = relationship("Technology", back_populates="profile", cascade="all, delete-orphan")
-Profile.routes = relationship("DiscoveredRoute", back_populates="profile", cascade="all, delete-orphan")
-Profile.js_dependencies = relationship("JsDependency", back_populates="profile", cascade="all, delete-orphan")

@@ -1,43 +1,35 @@
 <div class="app-layout">
   <!-- SIDEBAR NAVIGATION -->
-  <nav class="sidebar" [attr.aria-label]="'Main navigation' | t">
+  <nav class="sidebar" [attr.aria-label]="'aria.mainNavigation' | t">
     <div class="brand">
-      <h1 class="t-heading">{{ 'KENSEI' | t }}</h1>
-      <span class="t-label">{{ 'XWA - MODULE' | t }}</span>
+      <h1 class="t-heading">{{ 'app.title' | t }}</h1>
+      <span class="t-label">{{ 'app.tagline' | t }}</span>
     </div>
 
     <ul class="nav-links">
-      <li>
-        <a routerLink="/profiler" routerLinkActive="active" class="t-label">{{ '01 // PROFILER' | t }}</a>
-      </li>
-      <li>
-        <a routerLink="/js-analysis" routerLinkActive="active" class="t-label">{{ '02 // JS ANALYSIS' | t }}</a>
-      </li>
-      <li>
-        <a routerLink="/spa-routes" routerLinkActive="active" class="t-label">{{ '03 // SPA ROUTES' | t }}</a>
-      </li>
-      <li>
-        <a routerLink="/history" routerLinkActive="active" class="t-label">{{ '04 // HISTORY & ARCHIVE' | t }}</a>
-      </li>
-      <li>
-        <a routerLink="/inventory" routerLinkActive="active" class="t-label">{{ '05 // INVENTORY' | t }}</a>
-      </li>
+      @for (item of navItems; track item.path) {
+        <li>
+          <a [routerLink]="item.path" routerLinkActive="active" class="t-label">
+            {{ item.key | t }}
+          </a>
+        </li>
+      }
     </ul>
 
     <div class="sidebar-footer">
-      <span class="t-label">{{ 'v. 0.1.0' | t }}</span>
+      <span class="t-label">{{ 'app.version' | t }}</span>
       <div class="toggles-row">
         <button
           type="button"
           class="lang-toggle-btn"
-          (click)="toggleLang()"
-          [attr.aria-label]="translationService.nextLangAria()"
-          [attr.title]="translationService.nextLangAria()"
+          (click)="toggleLocale()"
+          [attr.aria-label]="i18n.nextLocaleAriaLabel()"
+          [attr.title]="i18n.nextLocaleAriaLabel()"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M8 1C4.134 1 1 4.134 1 8C1 11.866 4.134 15 8 15C11.866 15 15 11.866 15 8C15 4.134 11.866 1 8 1ZM2.08 7H4.196C4.267 5.764 4.465 4.585 4.78 3.497C3.318 4.416 2.219 5.914 2.08 7ZM5 8C5 9.084 5.117 10.107 5.336 11H10.664C10.883 10.107 11 9.084 11 8C11 6.916 10.883 5.893 10.664 5H5.336C5.117 5.893 5 6.916 5 8ZM6.458 1.088C6.275 1.351 6.105 1.654 5.951 2H7.204C7.043 1.684 6.88 1.4 6.737 1.183C6.642 1.042 6.54 1.014 6.458 1.088ZM8 1.067C8.196 1.321 8.444 1.718 8.648 2.224C8.837 2.688 8.992 3.24 9.099 3.852V3.854C9.157 4.195 9.207 4.548 9.243 4.91C9.108 4.97 8.56 5 8 5C7.44 5 6.892 4.97 6.757 4.91C6.793 4.548 6.843 4.195 6.901 3.854C7.008 3.24 7.163 2.688 7.352 2.224C7.556 1.718 7.804 1.321 8 1.067ZM5.951 14C6.105 14.346 6.275 14.649 6.458 14.912C6.54 14.986 6.642 14.958 6.737 14.817C6.88 14.6 7.043 14.316 7.204 14H5.951ZM8 14.933C7.804 14.679 7.556 14.282 7.352 13.776C7.163 13.312 7.008 12.76 6.901 12.148C6.843 11.807 6.793 11.454 6.757 11.092C6.892 11.032 7.44 11 8 11C8.56 11 9.108 11.03 9.243 11.09C9.207 11.452 9.157 11.805 9.099 12.146C8.992 12.76 8.837 13.312 8.648 13.776C8.444 14.282 8.196 14.679 8 14.933ZM11.22 12.503C11.535 11.415 11.733 10.236 11.804 9H13.92C13.781 10.086 12.682 11.584 11.22 12.503ZM13.92 7H11.804C11.733 5.764 11.535 4.585 11.22 3.497C12.682 4.416 13.781 5.914 13.92 7Z" />
           </svg>
-          <span>{{ translationService.nextLangLabel() }}</span>
+          <span>{{ i18n.nextLocaleLabel() }}</span>
         </button>
         <button
           type="button"
@@ -82,7 +74,7 @@
   </nav>
 
   <!-- MAIN CONTENT AREA -->
-  <main id="main-content" class="main-content dot-grid-subtle" role="main" [attr.aria-label]="'Primary content' | t">
+  <main id="main-content" class="main-content dot-grid-subtle" role="main" [attr.aria-label]="'aria.primaryContent' | t">
     <router-outlet></router-outlet>
   </main>
 </div>

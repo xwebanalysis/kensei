@@ -76,10 +76,6 @@ if [ -d "$ROOT_DIR/frontend/node_modules" ]; then
     echo "    Removing node_modules/..."
     rm -rf "$ROOT_DIR/frontend/node_modules"
 fi
-if [ -f "$ROOT_DIR/frontend/package-lock.json" ]; then
-    echo "    Removing package-lock.json..."
-    rm -f "$ROOT_DIR/frontend/package-lock.json"
-fi
 if [ -d "$ROOT_DIR/frontend/dist" ]; then
     echo "    Removing dist/..."
     rm -rf "$ROOT_DIR/frontend/dist"
@@ -96,4 +92,4 @@ fi
 
 echo ""
 echo -e "${GREEN}[+] Cleanup complete.${NC}"
-echo -e "    Run ${CYAN}./kensei.sh${NC} or ${CYAN}./kensei.sh --native${NC} for a fresh start."
+echo -e "    Run ${CYAN}./kensei.sh${NC} (local SQLite) or ${CYAN}./kensei.sh docker${NC} for a fresh start."

@@ -14,7 +14,9 @@ JWT_SECRET = os.getenv("KENSEI_JWT_SECRET") or None
 AUTH_PASSWORD = os.getenv("KENSEI_AUTH_PASSWORD", "kensei")
 TOKEN_TTL_HOURS = 24
 
-RATE_LIMIT_MAX = int(os.getenv("KENSEI_RATE_LIMIT_MAX", "30"))
+RATE_LIMIT_MAX = int(
+    os.getenv("KENSEI_RATE_LIMIT_MAX") or os.getenv("XWA_RATE_LIMIT_MAX") or "120"
+)
 RATE_LIMIT_WINDOW = 60.0
 
 _hits: dict[str, deque[float]] = defaultdict(deque)
@@ -36,13 +38,27 @@ def is_exempt(path: str) -> bool:
 
 
 async def rate_limit_middleware(request: Request, call_next):
+    """In-process token bucket: RATE_LIMIT_MAX requests per client per minute."""
+    if is_exempt(request.url.path):
+        return await call_next(request)
+
     client = request.client.host if request.client else "unknown"
     now = time.monotonic()
     hits = _hits[client]
     while hits and now - hits[0] > RATE_LIMIT_WINDOW:
         hits.popleft()
     if len(hits) >= RATE_LIMIT_MAX:
-        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded, try again later."})
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Rate limit exceeded, try again later.",
+                    "detail": None,
+                    "retryable": True,
+                }
+            },
+        )
     hits.append(now)
     return await call_next(request)
 
@@ -54,11 +70,22 @@ async def auth_middleware(request: Request, call_next):
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return JSONResponse(status_code=401, content={"detail": "Missing bearer token."})
-    try:
-        pyjwt.decode(auth.removeprefix("Bearer ").strip(), JWT_SECRET, algorithms=["HS256"])
-    except pyjwt.PyJWTError:
+    if not token_is_valid(auth.removeprefix("Bearer ").strip()):
         return JSONResponse(status_code=401, content={"detail": "Invalid or expired token."})
     return await call_next(request)
+
+
+def token_is_valid(token: str | None) -> bool:
+    """Validate an HS256 token; used by HTTP middleware and the WebSocket."""
+    if not AUTH_REQUIRED:
+        return True
+    if not token:
+        return False
+    try:
+        pyjwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return True
+    except pyjwt.PyJWTError:
+        return False
 
 
 def issue_token() -> str:

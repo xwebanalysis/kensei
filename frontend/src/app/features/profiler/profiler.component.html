@@ -1,18 +1,17 @@
 <div class="route-container">
   <header class="section-header">
     <div>
-      <h1 class="t-heading">PROFILER</h1>
-      <span class="t-label">WEB TECHNOLOGY STACK PROFILER</span>
+      <h1 class="t-heading">{{ 'profiler.title' | t }}</h1>
+      <span class="t-label">{{ 'profiler.subtitle' | t }}</span>
     </div>
     <div class="status-indicator">
-      <div class="status-dot" [style.background-color]="scanning ? 'var(--warning)' : completed ? 'var(--success)' : error ? 'var(--error)' : 'var(--success)'"></div>
-      <span class="t-label" aria-live="polite">
-        {{ scanning ? 'SCANNING...' : completed ? 'COMPLETE' : error ? 'ERROR' : 'MODULE READY' }}
-      </span>
+      <div class="status-dot" [style.background-color]="statusColor()"></div>
+      <span class="t-label" aria-live="polite">{{ statusLabelKey() | t }}</span>
     </div>
   </header>
 
   <div class="input-row">
+    <label class="visually-hidden" for="target-input">{{ 'profiler.target' | t }}</label>
     <input
       type="text"
       id="target-input"
@@ -23,106 +22,126 @@
       (keyup.enter)="startScan()"
     />
     <button class="btn-scan" (click)="startScan()" [disabled]="scanning || !targetUrl.trim()">
-      <span *ngIf="!scanning">SCAN</span>
-      <span *ngIf="scanning">SCANNING...</span>
+      {{ (scanning ? 'profiler.scanning' : 'profiler.scan') | t }}
     </button>
   </div>
 
-  <div *ngIf="error" class="t-label text-error" style="margin-bottom: var(--space-lg);">[ {{ error }} ]</div>
+  @if (hasError()) {
+    <div class="t-label text-error error-line" aria-live="polite">
+      [ {{ errorKey ? (errorKey | t: { url: error }) : error }} ]
+    </div>
+  }
 
-  <div *ngIf="scanning || completed" class="dashboard-grid">
-    <section class="panel">
-      <span class="t-label">PHASES</span>
-      <div *ngFor="let p of phases" class="phase-row" [class.active]="p.active" [class.done]="p.done">
-        <div class="phase-dot" [style.background-color]="p.done ? 'var(--success)' : p.active ? 'var(--warning)' : 'var(--border-visible)'"></div>
-        <span class="t-data" [class.text-secondary]="!p.active && !p.done">PHASE {{ p.id }}: {{ p.label }}</span>
-        <span *ngIf="p.active" class="t-label text-warning">[IN PROGRESS]</span>
-        <span *ngIf="p.done && !p.active" class="t-label text-success">[DONE]</span>
-      </div>
-    </section>
-
-    <section class="panel">
-      <span class="t-label">LIVE RESULTS</span>
-      <div *ngIf="currentTarget" class="stat-row">
-        <span class="t-label">TARGET</span>
-        <span class="t-data">{{ currentTarget }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="t-label">TECHNOLOGIES</span>
-        <span class="t-data">{{ techsFound }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="t-label">ROUTES</span>
-        <span class="t-data">{{ routesFound }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="t-label">GUARDS</span>
-        <span class="t-data">{{ guardsFound }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="t-label">JS DEPS</span>
-        <span class="t-data">{{ jsDepsFound }}</span>
-      </div>
-    </section>
-
-    <section *ngIf="report" class="panel full-width">
-      <span class="t-label">REPORT — {{ report.domain }}</span>
-      <span class="t-caption text-secondary">{{ report.created_at | date:'medium' }}</span>
-
-      <div *ngFor="let cat of report.summary.categories" class="category-block">
-        <span class="t-label" style="margin-bottom: var(--space-sm); display: block;">{{ cat }}</span>
-        <div class="tech-grid">
-          <div *ngFor="let tech of report.technologies_by_category[cat]" class="tech-item">
-            <span class="t-body">{{ tech.name }}</span>
-            <span class="t-caption text-secondary" *ngIf="tech.version">v{{ tech.version }}</span>
-            <span class="t-caption text-secondary"> · {{ tech.confidence }}</span>
+  @if (scanning || stats.completed) {
+    <div class="dashboard-grid">
+      <section class="panel">
+        <span class="t-label">{{ 'profiler.phases' | t }}</span>
+        @for (phase of phases; track phase.id) {
+          <div class="phase-row" [class.active]="phase.active" [class.done]="phase.done">
+            <div
+              class="phase-dot"
+              [style.background-color]="phase.done ? 'var(--success)' : phase.active ? 'var(--warning)' : 'var(--border-visible)'"
+            ></div>
+            <span class="t-data" [class.text-muted]="!phase.active && !phase.done">
+              {{ 'profiler.phase' | t }} {{ phase.id }}: {{ phase.label }}
+            </span>
+            @if (phase.active) {
+              <span class="t-label text-warning">{{ 'profiler.inProgress' | t }}</span>
+            }
+            @if (phase.done && !phase.active) {
+              <span class="t-label text-success">{{ 'profiler.done' | t }}</span>
+            }
           </div>
-        </div>
-      </div>
-
-      <div *ngIf="report.outdated_technologies && report.outdated_technologies.length > 0" class="category-block">
-        <span class="t-label" style="margin-bottom: var(--space-sm); display: block;">OUTDATED</span>
-        <div class="tech-grid">
-          <div *ngFor="let tech of report.outdated_technologies" class="tech-item warn">
-            <span class="t-body">{{ tech.name }}</span>
-            <span class="t-caption text-error">{{ tech.version }}</span>
+        }
+        @if (currentTarget) {
+          <div class="stat-row">
+            <span class="t-label">{{ 'profiler.target' | t }}</span>
+            <span class="t-data">{{ currentTarget }}</span>
           </div>
-        </div>
-      </div>
-
-      <div *ngIf="detail && regularRoutes.length > 0" class="category-block">
-        <span class="t-label" style="margin-bottom: var(--space-sm); display: block;">ROUTES ({{ regularRoutes.length }})</span>
-        <div class="tech-grid">
-          <div *ngFor="let r of regularRoutes" class="tech-item">
-            <span class="t-body">{{ r.path }}</span>
-            <span class="t-caption text-secondary">{{ r.route_type }}<span *ngIf="r.framework"> · {{ r.framework }}</span></span>
+        }
+        @if (currentPhase) {
+          <div class="stat-row">
+            <span class="t-label">{{ 'profiler.liveResults' | t }}</span>
+            <span class="t-data">{{ currentPhase }}</span>
           </div>
-        </div>
-      </div>
+        }
+      </section>
 
-      <div *ngIf="detail && guards.length > 0" class="category-block">
-        <span class="t-label" style="margin-bottom: var(--space-sm); display: block;">AUTH GUARDS ({{ guards.length }})</span>
-        <div class="tech-grid">
-          <div *ngFor="let g of guards" class="tech-item">
-            <span class="t-body">{{ g.path }}</span>
-            <span class="t-caption text-secondary">{{ g.framework || 'unknown' }}</span>
+      <section class="metrics-grid" aria-live="polite">
+        <app-metric-card [label]="'profiler.technologies' | t" [value]="stats.techs" />
+        <app-metric-card [label]="'profiler.routes' | t" [value]="stats.routes" />
+        <app-metric-card [label]="'profiler.guards' | t" [value]="stats.guards" />
+        <app-metric-card [label]="'profiler.jsDeps' | t" [value]="stats.jsDeps" />
+      </section>
+
+      <section class="full-width">
+        <app-terminal
+          [title]="'profiler.liveLog' | t"
+          [lines]="logLines"
+          [emptyText]="'profiler.noEvents' | t"
+        />
+      </section>
+
+      @if (report) {
+        <section class="panel full-width">
+          <span class="t-label">{{ 'profiler.report' | t }} — {{ report.domain }}</span>
+          <span class="t-caption text-muted">{{ report.created_at | date:'medium' }}</span>
+
+          @for (category of reportCategories(); track category) {
+            <div class="category-block">
+              <app-findings-list
+                [title]="category"
+                [items]="categoryItems(category)"
+                [emptyText]="'common.noData' | t"
+              />
+            </div>
+          }
+
+          @if (outdatedItems().length > 0) {
+            <div class="category-block">
+              <app-findings-list
+                [title]="'profiler.outdated' | t"
+                [items]="outdatedItems()"
+                [emptyText]="'common.noData' | t"
+              />
+            </div>
+          }
+
+          @if (routeItems().length > 0) {
+            <div class="category-block">
+              <app-findings-list
+                [title]="('profiler.routes' | t) + ' (' + routeItems().length + ')'"
+                [items]="routeItems()"
+                [emptyText]="'common.noData' | t"
+              />
+            </div>
+          }
+
+          @if (guardItems().length > 0) {
+            <div class="category-block">
+              <app-findings-list
+                [title]="('profiler.authGuards' | t) + ' (' + guardItems().length + ')'"
+                [items]="guardItems()"
+                [emptyText]="'common.noData' | t"
+              />
+            </div>
+          }
+
+          @if (dependencyItems().length > 0) {
+            <div class="category-block">
+              <app-findings-list
+                [title]="('profiler.jsDependencies' | t) + ' (' + dependencyItems().length + ')'"
+                [items]="dependencyItems()"
+                [emptyText]="'common.noData' | t"
+              />
+            </div>
+          }
+
+          <div class="actions">
+            <a routerLink="/history" class="t-link">{{ 'profiler.viewAll' | t }}</a>
           </div>
-        </div>
-      </div>
-
-      <div *ngIf="detail && detail.js_dependencies.length > 0" class="category-block">
-        <span class="t-label" style="margin-bottom: var(--space-sm); display: block;">JS DEPENDENCIES ({{ detail.js_dependencies.length }})</span>
-        <div class="tech-grid">
-          <div *ngFor="let d of detail.js_dependencies" class="tech-item">
-            <span class="t-body">{{ d.name }}</span>
-            <span class="t-caption text-secondary">v{{ d.version }}<span *ngIf="d.package_manager"> · {{ d.package_manager }}</span></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="actions">
-        <a [routerLink]="'/history'" class="t-link">VIEW ALL PROFILES →</a>
-      </div>
-    </section>
-  </div>
+        </section>
+      }
+    </div>
+  }
 </div>

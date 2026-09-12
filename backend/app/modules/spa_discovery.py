@@ -125,13 +125,17 @@ async def run(target: str, log: LogCallback) -> Dict[str, Any]:
 
     extract_routes(html, ALL_PATTERNS, "html")
 
-    for url in bundle_urls[:5]:
-        try:
-            resp = await client.get(url, timeout=10)
-            if resp.status_code == 200:
-                extract_routes(resp.text, ALL_PATTERNS, url.split("/")[-1][:60])
-        except Exception:
-            continue
+    # The HTML client is closed by its `async with` block, so bundle fetches
+    # need their own client (previously they reused the closed one and every
+    # request failed silently, leaving route discovery empty).
+    async with httpx.AsyncClient(timeout=15, verify=False, follow_redirects=True) as bundle_client:
+        for url in bundle_urls[:5]:
+            try:
+                resp = await bundle_client.get(url, timeout=10)
+                if resp.status_code == 200:
+                    extract_routes(resp.text, ALL_PATTERNS, url.split("/")[-1][:60])
+            except Exception:
+                continue
 
     for fw in detected_frameworks:
         fw_routes = [r for r in routes if r["framework"] == fw]

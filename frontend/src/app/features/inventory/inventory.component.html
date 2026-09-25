@@ -38,6 +38,19 @@
 
     <app-export-actions [profile]="profile" />
 
+    <section class="panel charts-panel">
+      <div class="charts-grid">
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.techCategories' | t }}</span>
+          <app-xwa-chart kind="h-bars" [data]="techCategoryData()" title="Technology categories"></app-xwa-chart>
+        </div>
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.confidence' | t }}</span>
+          <app-xwa-chart kind="donut" [data]="confidenceData()" unit="TECH" title="Detection confidence"></app-xwa-chart>
+        </div>
+      </div>
+    </section>
+
     @if (profile.technologies.length > 0) {
       <section class="panel">
         <span class="t-label">{{ 'inv.technologies' | t }} ({{ profile.technologies.length }})</span>

@@ -1,11 +1,11 @@
 # Kensei backend — runtime dependencies (Python 3.13, SQLite by default).
 # Reproducible pins; verified with pip 26 on CPython 3.13.
 fastapi==0.141.1
-uvicorn[standard]==0.52.1
-SQLAlchemy==2.0.51
-pydantic==2.13.4
+uvicorn[standard]==0.54.0
+SQLAlchemy==2.1.0
+pydantic==2.13.5
 httpx==0.28.1
-PyJWT==2.13.0
+PyJWT==2.15.0
 
 # xwa-sdk is intentionally NOT listed here: kensei.sh installs the local
 # editable checkout (`pip install -e ../xwa-sdk/bindings/python`) and falls

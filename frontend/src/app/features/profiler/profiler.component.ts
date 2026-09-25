@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -12,6 +12,11 @@ import {
   liveEventLogLine,
   parseLiveEvent,
 } from '../../core/live-event';
+import {
+  detectionConfidenceData,
+  technologyCategoryData,
+} from '../../shared/charts/chart-data';
+import { XwaChartComponent, XwaChartDatum } from '../../shared/charts/xwa-chart.component';
 import { FindingRow, FindingsListComponent } from '../../shared/findings-list/findings-list.component';
 import { MetricCardComponent } from '../../shared/metric-card/metric-card.component';
 import { TerminalComponent } from '../../shared/terminal/terminal.component';
@@ -35,11 +40,12 @@ interface PhaseRow {
     MetricCardComponent,
     TerminalComponent,
     TranslatePipe,
+    XwaChartComponent,
   ],
   templateUrl: './profiler.component.html',
   styleUrls: ['./profiler.component.scss'],
 })
-export class ProfilerComponent implements OnDestroy {
+export class ProfilerComponent implements OnInit, OnDestroy {
   protected readonly api = inject(ApiService);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -65,6 +71,22 @@ export class ProfilerComponent implements OnDestroy {
   ];
 
   private ws: WebSocket | null = null;
+
+  ngOnInit(): void {
+    // Show the most recent profile (and its charts) on load; a fresh scan
+    // replaces this with its own live results.
+    this.api.listProfiles().subscribe({
+      next: (profiles) => {
+        if (profiles.length > 0 && !this.scanning) {
+          this.profileId = profiles[0].id;
+          this.currentTarget = profiles[0].domain_target;
+          this.fetchReport();
+          this.fetchDetail();
+        }
+      },
+      error: () => this.cdr.markForCheck(),
+    });
+  }
 
   startScan(): void {
     const url = this.targetUrl.trim();
@@ -274,6 +296,14 @@ export class ProfilerComponent implements OnDestroy {
       return 'profiler.statusError';
     }
     return 'profiler.statusReady';
+  }
+
+  techCategoryData(): XwaChartDatum[] {
+    return technologyCategoryData(this.detail?.technologies ?? []);
+  }
+
+  confidenceData(): XwaChartDatum[] {
+    return detectionConfidenceData(this.detail?.technologies ?? []);
   }
 
   statusColor(): string {

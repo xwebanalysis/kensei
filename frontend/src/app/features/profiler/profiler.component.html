@@ -32,6 +32,24 @@
     </div>
   }
 
+  @if (detail && !scanning) {
+    <section class="panel charts-panel" aria-label="Profile charts">
+      <div class="charts-grid">
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.techCategories' | t }}</span>
+          <app-xwa-chart kind="h-bars" [data]="techCategoryData()" title="Technology categories"></app-xwa-chart>
+        </div>
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.confidence' | t }}</span>
+          <app-xwa-chart kind="donut" [data]="confidenceData()" unit="TECH" title="Detection confidence"></app-xwa-chart>
+        </div>
+      </div>
+      <span class="t-caption text-muted">
+        {{ 'charts.latestProfile' | t: { domain: currentTarget, id: profileId ?? 0 } }}
+      </span>
+    </section>
+  }
+
   @if (scanning || stats.completed) {
     <div class="dashboard-grid">
       <section class="panel">

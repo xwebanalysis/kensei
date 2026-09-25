@@ -101,19 +101,28 @@ English
 
 <h2>Security</h2>
 
-<p>CORS is restricted to localhost/LAN by default, rate limiting is always on, and JWT authentication is optional:</p>
+<p>CORS is restricted to localhost/LAN by default, rate limiting is always on, and JWT authentication with role-based access control is optional (off unless <code>KENSEI_JWT_SECRET</code> is set):</p>
 
 <table>
   <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
   <tr><td><code>XWA_CORS_ORIGINS</code></td><td>unset</td><td>Comma-separated exact origins, or <code>*</code>. Unset allows localhost/LAN (<code>allow_credentials=False</code>)</td></tr>
-  <tr><td><code>KENSEI_JWT_SECRET</code></td><td>unset</td><td>When set, all <code>/api/*</code> routes and the live WebSocket require an HS256 Bearer token (24h)</td></tr>
-  <tr><td><code>KENSEI_AUTH_PASSWORD</code></td><td><code>kensei</code></td><td>Password accepted by <code>POST /api/auth/token</code></td></tr>
+  <tr><td><code>KENSEI_JWT_SECRET</code></td><td>unset</td><td>When set, all <code>/api/*</code> routes and the live WebSocket require an HS256 Bearer token (24h). Unset = auth and RBAC fully disabled</td></tr>
+  <tr><td><code>KENSEI_ADMIN_PASSWORD</code></td><td><code>changeme</code></td><td>Admin password accepted by <code>POST /api/auth/login</code> (only while <code>KENSEI_JWT_SECRET</code> is set)</td></tr>
   <tr><td><code>KENSEI_RATE_LIMIT_MAX</code></td><td><code>120</code></td><td>Requests per client IP per 60 s window (<code>429</code> when exceeded); <code>/api/health</code> is exempt</td></tr>
 </table>
 
+<p>Tokens carry <code>sub</code> + <code>role</code> claims (<code>admin</code> | <code>analyst</code>). <code>/api/auth/login</code>
+issues <code>admin</code> tokens. Destructive routes — <code>DELETE /api/profiles</code>,
+<code>DELETE /api/profiles/{id}</code> and <code>POST /api/profiles/{id}/cancel</code> — require the
+<code>admin</code> role; <code>analyst</code> tokens get <code>403</code> there but may read everything else.
+<code>/api/health</code> and <code>/</code> stay exempt. The legacy <code>POST /api/auth/token</code> endpoint and
+<code>KENSEI_AUTH_PASSWORD</code> env var remain as deprecated aliases. With <code>KENSEI_JWT_SECRET</code>
+unset, every route behaves exactly as without auth.</p>
+
 <pre><code>export KENSEI_JWT_SECRET=change-me
-curl -X POST http://localhost:8010/api/auth/token \
-  -H 'Content-Type: application/json' -d '{"password":"kensei"}'
+export KENSEI_ADMIN_PASSWORD=change-me-too
+curl -X POST http://localhost:8010/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"password":"change-me-too"}'
 # use the returned token over HTTP:
 curl -H 'Authorization: Bearer &lt;token&gt;' http://localhost:8010/api/profiles
 # and over WebSocket:

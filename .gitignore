@@ -76,3 +76,7 @@ kensei-tui/*.enc
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Pytest + logs
+.pytest_cache/
+*.log

@@ -6,21 +6,23 @@ import { filter, Subscription } from 'rxjs';
 
 import { ApiService, CompareResult, ProfileSummary, TrendsResult } from '../../core/api.service';
 import { ExportService } from '../../core/export.service';
+import { profilesPerDayData, profileStatusData } from '../../shared/charts/chart-data';
+import { XwaChartComponent, XwaChartDatum } from '../../shared/charts/xwa-chart.component';
 import { FindingRow, FindingsListComponent } from '../../shared/findings-list/findings-list.component';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { TranslatePipe } from '../../shared/translate.pipe';
 
-interface TrendChart {
-  points: Array<{ x: number; y: number; label: string; value: number }>;
-  max: number;
-  width: number;
-  height: number;
-}
-
 @Component({
   selector: 'app-history',
   standalone: true,
-  imports: [DatePipe, FormsModule, FindingsListComponent, StatusBadgeComponent, TranslatePipe],
+  imports: [
+    DatePipe,
+    FormsModule,
+    FindingsListComponent,
+    StatusBadgeComponent,
+    TranslatePipe,
+    XwaChartComponent,
+  ],
   templateUrl: './history.component.html',
   styleUrls: ['./history.component.scss'],
 })
@@ -194,30 +196,23 @@ export class HistoryComponent implements OnInit, OnDestroy {
     });
   }
 
-  trendChart(): TrendChart {
-    const width = 720;
-    const height = 180;
-    const pad = 24;
+  trendChartData(): XwaChartDatum[] {
     if (!this.trendsResult || this.trendsResult.points.length === 0) {
-      return { points: [], max: 1, width, height };
+      return [];
     }
-    const points = this.trendsResult.points;
-    const max = Math.max(1, ...points.map((point) => point.technologies));
-    const count = points.length;
-    const chartPoints = points.map((point, index) => ({
-      x: count === 1 ? width / 2 : pad + (index * (width - pad * 2)) / (count - 1),
-      y: height - pad - (point.technologies / max) * (height - pad * 2),
+    return this.trendsResult.points.map((point) => ({
       label: point.created_at
         ? new Date(point.created_at).toLocaleDateString()
         : `#${point.profile_id}`,
       value: point.technologies,
     }));
-    return { points: chartPoints, max, width, height };
   }
 
-  trendLinePath(): string {
-    return this.trendChart()
-      .points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
-      .join(' ');
+  scansPerDayData(): XwaChartDatum[] {
+    return profilesPerDayData(this.profiles);
+  }
+
+  statusChartData(): XwaChartDatum[] {
+    return profileStatusData(this.profiles);
   }
 }

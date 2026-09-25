@@ -47,6 +47,21 @@
     <div class="t-label text-error list-error">[ {{ compareErrorKey | t }} ]</div>
   }
 
+  @if (!loading && profiles.length > 0) {
+    <section class="panel charts-panel" aria-label="Profile charts">
+      <div class="charts-grid">
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.profilesPerDay' | t }}</span>
+          <app-xwa-chart kind="line" [data]="scansPerDayData()" title="Profiles per day"></app-xwa-chart>
+        </div>
+        <div class="chart-block">
+          <span class="t-label">{{ 'charts.status' | t }}</span>
+          <app-xwa-chart kind="donut" [data]="statusChartData()" unit="PROFILES" title="Profile status distribution"></app-xwa-chart>
+        </div>
+      </div>
+    </section>
+  }
+
   @if (!loading && profiles.length === 0) {
     <div class="t-label text-muted">{{ 'history.empty' | t }}</div>
   }
@@ -158,25 +173,14 @@
       <span class="t-label">
         {{ trendsResult.domain }} — {{ 'history.profilesCount' | t: { count: trendsResult.points.length } }}
       </span>
-      <svg
-        [attr.viewBox]="'0 0 ' + trendChart().width + ' ' + trendChart().height"
-        class="trend-chart"
-        preserveAspectRatio="none"
-      >
-        @for (point of trendChart().points; track $index) {
-          <line [attr.x1]="point.x" [attr.x2]="point.x" y1="0" y2="156" class="trend-gridline" />
-        }
-        <path [attr.d]="trendLinePath()" class="trend-line" />
-        @for (point of trendChart().points; track $index) {
-          <circle [attr.cx]="point.x" [attr.cy]="point.y" r="3" class="trend-dot">
-            <title>{{ point.label }} — {{ point.value }}</title>
-          </circle>
-        }
-      </svg>
-      <div class="trend-legend">
-        @for (point of trendChart().points; track $index) {
-          <span class="t-caption text-muted">{{ point.label }} · {{ point.value }}T</span>
-        }
+      <div class="chart-block">
+        <span class="t-label">{{ 'charts.trends' | t }}</span>
+        <app-xwa-chart
+          kind="line"
+          [data]="trendChartData()"
+          unit="T"
+          title="Technology trend over time"
+        ></app-xwa-chart>
       </div>
     </div>
   }

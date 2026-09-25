@@ -94,6 +94,13 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'history.compareError': 'Compare failed.',
     'history.deleteAllError': 'Failed to delete all profiles.',
     'history.trendsError': 'Trends failed.',
+    // Charts (shared xwa-chart)
+    'charts.techCategories': 'TECHNOLOGY BY CATEGORY',
+    'charts.confidence': 'DETECTION CONFIDENCE',
+    'charts.profilesPerDay': 'PROFILES PER DAY',
+    'charts.status': 'PROFILE STATUS',
+    'charts.trends': 'TECHNOLOGY TREND',
+    'charts.latestProfile': 'LATEST PROFILE: {domain} (ID {id})',
     // Inventory
     'inv.title': 'INVENTORY',
     'inv.subtitle': 'FULL TECHNOLOGY STACK REPORT',
@@ -199,6 +206,13 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     'history.compareError': 'Fallo la comparacion.',
     'history.deleteAllError': 'No se pudieron borrar todos los perfiles.',
     'history.trendsError': 'Fallo la carga de tendencias.',
+    // Charts (shared xwa-chart)
+    'charts.techCategories': 'TECNOLOGIA POR CATEGORIA',
+    'charts.confidence': 'CONFIANZA DE DETECCION',
+    'charts.profilesPerDay': 'PERFILES POR DIA',
+    'charts.status': 'ESTADO DE PERFILES',
+    'charts.trends': 'TENDENCIA TECNOLOGICA',
+    'charts.latestProfile': 'ULTIMO PERFIL: {domain} (ID {id})',
     // Inventory
     'inv.title': 'INVENTARIO',
     'inv.subtitle': 'INFORME COMPLETO DEL STACK TECNOLOGICO',

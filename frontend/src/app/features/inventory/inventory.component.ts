@@ -3,6 +3,11 @@ import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { ApiService, ProfileDetail, ProfileSummary, Technology } from '../../core/api.service';
+import {
+  detectionConfidenceData,
+  technologyCategoryData,
+} from '../../shared/charts/chart-data';
+import { XwaChartComponent, XwaChartDatum } from '../../shared/charts/xwa-chart.component';
 import { ExportActionsComponent } from '../../shared/export-actions/export-actions.component';
 import { FindingRow, FindingsListComponent } from '../../shared/findings-list/findings-list.component';
 import { TranslatePipe } from '../../shared/translate.pipe';
@@ -10,7 +15,14 @@ import { TranslatePipe } from '../../shared/translate.pipe';
 @Component({
   selector: 'app-inventory',
   standalone: true,
-  imports: [DatePipe, KeyValuePipe, ExportActionsComponent, FindingsListComponent, TranslatePipe],
+  imports: [
+    DatePipe,
+    KeyValuePipe,
+    ExportActionsComponent,
+    FindingsListComponent,
+    TranslatePipe,
+    XwaChartComponent,
+  ],
   templateUrl: './inventory.component.html',
   styleUrls: ['./inventory.component.scss'],
 })
@@ -87,6 +99,14 @@ export class InventoryComponent implements OnInit {
       tag: tech.confidence,
       tagKind: 'confidence' as const,
     }));
+  }
+
+  techCategoryData(): XwaChartDatum[] {
+    return technologyCategoryData(this.profile?.technologies ?? []);
+  }
+
+  confidenceData(): XwaChartDatum[] {
+    return detectionConfidenceData(this.profile?.technologies ?? []);
   }
 
   routeItems(): FindingRow[] {

@@ -81,7 +81,7 @@ describe('HistoryComponent', () => {
     expect(api.compareCalls).toHaveLength(0);
   });
 
-  it('should load trends and build the chart path', () => {
+  it('should load trends and build the chart data', () => {
     const fixture = TestBed.createComponent(HistoryComponent);
     fixture.componentInstance.trendsDomain = 'example.com';
     fixture.componentInstance.loadTrends();
@@ -89,10 +89,24 @@ describe('HistoryComponent', () => {
     expect(api.trendCalls).toEqual(['example.com']);
     expect(fixture.componentInstance.trendsResult?.points).toHaveLength(2);
 
-    const chart = fixture.componentInstance.trendChart();
-    expect(chart.points).toHaveLength(2);
-    expect(chart.max).toBe(7);
-    expect(fixture.componentInstance.trendLinePath()).toMatch(/^M.*L/);
+    const data = fixture.componentInstance.trendChartData();
+    expect(data).toEqual([
+      { label: expect.any(String), value: 4 },
+      { label: expect.any(String), value: 7 },
+    ]);
+  });
+
+  it('should build the per-day and status charts from the profile list', () => {
+    const fixture = TestBed.createComponent(HistoryComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.scansPerDayData()).toEqual([
+      { label: '2026-01-01', value: 1 },
+      { label: '2026-01-02', value: 1 },
+    ]);
+    expect(fixture.componentInstance.statusChartData()).toEqual([
+      { label: 'COMPLETED', value: 2, color: 'success' },
+    ]);
   });
 
   it('should export the list from the client and open the server export', () => {

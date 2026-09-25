@@ -1,4 +1,4 @@
-"""Security middleware: optional JWT auth and in-memory rate limiting."""
+"""Security middleware: optional JWT auth with RBAC, and in-memory rate limiting."""
 
 from __future__ import annotations
 
@@ -11,8 +11,18 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 JWT_SECRET = os.getenv("KENSEI_JWT_SECRET") or None
-AUTH_PASSWORD = os.getenv("KENSEI_AUTH_PASSWORD", "kensei")
+# Admin password accepted by POST /api/auth/login. KENSEI_AUTH_PASSWORD is a
+# deprecated alias kept for backward compatibility.
+ADMIN_PASSWORD = (
+    os.getenv("KENSEI_ADMIN_PASSWORD")
+    or os.getenv("KENSEI_AUTH_PASSWORD")
+    or "changeme"
+)
 TOKEN_TTL_HOURS = 24
+
+ADMIN_ROLE = "admin"
+ANALYST_ROLE = "analyst"
+ROLES = (ADMIN_ROLE, ANALYST_ROLE)
 
 RATE_LIMIT_MAX = int(
     os.getenv("KENSEI_RATE_LIMIT_MAX") or os.getenv("XWA_RATE_LIMIT_MAX") or "120"
@@ -25,6 +35,7 @@ EXEMPT_PATHS = {
     "/",
     "/api/health",
     "/api/auth/token",
+    "/api/auth/login",
     "/docs",
     "/redoc",
     "/openapi.json",
@@ -35,6 +46,19 @@ AUTH_REQUIRED = JWT_SECRET is not None
 
 def is_exempt(path: str) -> bool:
     return path in EXEMPT_PATHS
+
+
+def is_destructive(request: Request) -> bool:
+    """Routes that mutate/remove stored profiles: admin-only under RBAC."""
+    method = request.method
+    path = request.url.path
+    if method == "DELETE" and (
+        path == "/api/profiles" or path.startswith("/api/profiles/")
+    ):
+        return True
+    if method == "POST" and path.startswith("/api/profiles/") and path.endswith("/cancel"):
+        return True
+    return False
 
 
 async def rate_limit_middleware(request: Request, call_next):
@@ -70,8 +94,16 @@ async def auth_middleware(request: Request, call_next):
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return JSONResponse(status_code=401, content={"detail": "Missing bearer token."})
-    if not token_is_valid(auth.removeprefix("Bearer ").strip()):
+    token = auth.removeprefix("Bearer ").strip()
+    if not token_is_valid(token):
         return JSONResponse(status_code=401, content={"detail": "Invalid or expired token."})
+
+    # RBAC: destructive routes (profile deletion / cancellation) require admin.
+    if is_destructive(request) and token_role(token) != ADMIN_ROLE:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Admin role required for this action."},
+        )
     return await call_next(request)
 
 
@@ -88,10 +120,22 @@ def token_is_valid(token: str | None) -> bool:
         return False
 
 
-def issue_token() -> str:
+def token_role(token: str | None) -> str | None:
+    """Extract the `role` claim from a valid token (None when unknown/invalid)."""
+    if not AUTH_REQUIRED or not token:
+        return None
+    try:
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except pyjwt.PyJWTError:
+        return None
+    role = payload.get("role")
+    return role if role in ROLES else None
+
+
+def issue_token(sub: str = "kensei-user", role: str = ADMIN_ROLE) -> str:
     now = int(time.time())
     return pyjwt.encode(
-        {"sub": "kensei-user", "iat": now, "exp": now + TOKEN_TTL_HOURS * 3600},
+        {"sub": sub, "role": role, "iat": now, "exp": now + TOKEN_TTL_HOURS * 3600},
         JWT_SECRET,
         algorithm="HS256",
     )

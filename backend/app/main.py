@@ -94,17 +94,23 @@ def health_check(db: Session = Depends(database.get_db)):
     }
 
 
-@app.post("/api/auth/token", response_model=TokenResponse)
-def issue_token(request: TokenRequest):
-    """Issue a signed token. Only available when KENSEI_JWT_SECRET is set."""
+@app.post("/api/auth/login", response_model=TokenResponse)
+def login(request: TokenRequest):
+    """Issue an admin token. Only available when KENSEI_JWT_SECRET is set."""
     if not security.AUTH_REQUIRED:
         raise HTTPException(status_code=403, detail="Auth is disabled (no KENSEI_JWT_SECRET).")
-    if request.password != security.AUTH_PASSWORD:
+    if request.password != security.ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password.")
     return TokenResponse(
-        token=security.issue_token(),
+        token=security.issue_token(role=security.ADMIN_ROLE),
         expires_in=security.TOKEN_TTL_HOURS * 3600,
     )
+
+
+@app.post("/api/auth/token", response_model=TokenResponse, include_in_schema=False)
+def issue_token_legacy(request: TokenRequest):
+    """Deprecated alias of POST /api/auth/login (kept for compatibility)."""
+    return login(request)
 
 
 @app.get("/api/version-db")
@@ -306,6 +312,19 @@ def delete_profile(profile_id: int, db: Session = Depends(database.get_db)):
     db.delete(profile)
     db.commit()
     return {"status": "deleted", "profile_id": profile_id}
+
+
+@app.post("/api/profiles/{profile_id}/cancel")
+def cancel_profile(profile_id: int, db: Session = Depends(database.get_db)):
+    """Mark a RUNNING profile as CANCELLED (destructive: admin-only under RBAC)."""
+    profile = db.query(models.Profile).filter(models.Profile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    if profile.status != "RUNNING":
+        raise HTTPException(status_code=409, detail=f"Profile is {profile.status}, not RUNNING")
+    profile.status = "CANCELLED"
+    db.commit()
+    return {"status": "cancelled", "profile_id": profile_id}
 
 
 @app.get("/api/profiles/{profile_id}/export/json")
